@@ -1,0 +1,33 @@
+{
+  "name": "@notaas/danfse-viewer",
+  "version": "1.0.0",
+  "description": "Parser de XML e visualizador da NFS-e Nacional para PDF/HTML. Implementação open-source de referência para o DANFSe v2.0 conforme a Nota Técnica NT-008.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "danfse",
+    "nfse-nacional",
+    "xml-nfse-pdf",
+    "nota-tecnica-008",
+    "pdf-generator",
+    "nota-fiscal-eletronica"
+  ],
+  "author": "WeDigi Brasil",
+  "license": "MIT",
+  "dependencies": {
+    "fast-xml-parser": "^5.5.11",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
+    "typescript": "^5"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
