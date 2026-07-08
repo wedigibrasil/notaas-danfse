@@ -14,7 +14,7 @@ Gere representações visuais em HTML e PDF a partir de XMLs autorizados do Port
 
 O Portal Nacional da NFS-e desativará a API pública do Visualizador (ADN) em **15 de julho de 2026**. Com isso, sistemas que dependem do redirecionamento oficial ou de renderizadores remotos do governo deixarão de exibir a representação gráfica do DANFSe. 
 
-Esta biblioteca foi desenvolvida pela **[we.digi](https://www.notaas.com.br)** para servir como a implementação open-source de referência para a comunidade brasileira contornar este desligamento de forma local, rápida e gratuita.
+Esta biblioteca foi desenvolvida pela **[Notaas](https://www.notaas.com.br)** para servir como a implementação open-source de referência para a comunidade brasileira contornar este desligamento de forma local, rápida e gratuita.
 
 > 💡 **Precisa de uma infraestrutura gerenciada, escalável e resiliente?**
 > A plataforma **[notaas](https://www.notaas.com.br)** oferece APIs de alta performance para emissão, consulta, cancelamento de NFS-e Nacional e geração distribuída de PDFs com suporte 24/7.
@@ -104,4 +104,4 @@ const customHtml = customBuilder.build(data);
 
 Distribuído sob a licença MIT. Consulte `LICENSE` para obter mais informações.
 
-Desenvolvido com ❤️ por **[we.digi](https://www.notaas.com.br)**.
+Desenvolvido com ❤️ por **[Notaas](https://www.notaas.com.br)**.
