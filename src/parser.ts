@@ -85,9 +85,10 @@ function get(obj: Record<string, unknown>, path: string): unknown {
 
 // ─── Domínios e Mapeamentos ──────────────────────────────────────────────────
 
+// TSAmbGeradorNFSe: 1=Prefeitura | 2=Sistema Nacional da NFS-e
 const AMB_GER_MAP: Record<string, string> = {
-    '1': 'Produção Nacional',
-    '2': 'Produção em Contingência Nacional',
+    '1': 'Prefeitura',
+    '2': 'Sistema Nacional da NFS-e',
 };
 
 const TP_AMB_MAP: Record<string, string> = {
@@ -120,24 +121,29 @@ const OP_SIMP_NAC_MAP: Record<string, string> = {
     '3': 'Optante - Microempresa ou Empresa de Pequeno Porte (ME/EPP)',
 };
 
+// TSRegimeApuracaoSimpNac (XSD v1.01): regime de apuração para optante ME/EPP (opSimpNac=3)
 const REG_AP_TRIB_SN_MAP: Record<string, string> = {
-    '1': 'Regime de apuração dos tributos federais e municipal pelo Simples Nacional',
-    '2': 'Regime de apuração com base na receita fixa mensal',
-    '3': 'Regime de estimativa por operação',
+    '1': 'Tributos federais e municipal pelo SN',
+    '2': 'Tributos federais pelo SN, ISSQN por fora',
+    '3': 'Tributos federais e municipal por fora do SN',
 };
 
+// TSRegEspTrib (XSD v1.01): 0=Nenhum 1=Cooperativa 2=Estimativa 3=MicroempresaMunicipal
+//   4=Notário/Registrador 5=ProfissionalAutônomo 6=SociedadeProfissionais 9=Outros
 const REG_ESP_TRIB_MAP: Record<string, string> = {
     '0': 'Nenhum',
-    '1': 'Microempresa Municipal',
+    '1': 'Ato Cooperado (Cooperativa)',
     '2': 'Estimativa',
-    '3': 'Sociedade de Profissionais',
-    '4': 'Cooperativa',
-    '5': 'Microempreendedor Individual',
-    '6': 'Microempresa ou Empresa Pequeno Porte',
+    '3': 'Microempresa Municipal',
+    '4': 'Notário ou Registrador',
+    '5': 'Profissional Autônomo',
+    '6': 'Sociedade de Profissionais',
     '9': 'Outros',
 };
 
+// TSTipoImunidade (XSD v1.01) — art. 150 CF88; 0=tipo não informado na nota de origem
 const TP_IMUNIDADE_MAP: Record<string, string> = {
+    '0': 'Imunidade (tipo não informado na nota de origem)',
     '1': 'Patrimônio, renda ou serviço, uns dos outros',
     '2': 'Templos de qualquer culto',
     '3': 'Patrimônio, renda ou serviço dos partidos políticos',
@@ -145,11 +151,12 @@ const TP_IMUNIDADE_MAP: Record<string, string> = {
     '5': 'Fonogramas e videofonogramas musicais',
 };
 
+// TBMISSQN (XSD v1.01): 1=Isenção 2=Redução BC% 3=Redução BC R$ 4=Alíquota Diferenciada
 const TP_BM_MAP: Record<string, string> = {
     '1': 'Isenção',
-    '2': 'Imunidade por Legislação Municipal',
-    '3': 'Redução de Base de Cálculo',
-    '4': 'Redução de Alíquota',
+    '2': 'Redução da BC em %',
+    '3': 'Redução da BC em R$',
+    '4': 'Alíquota Diferenciada',
 };
 
 const TP_SUSP_MAP: Record<string, string> = {
@@ -157,16 +164,18 @@ const TP_SUSP_MAP: Record<string, string> = {
     '2': 'Exigibilidade Suspensa por Processo Administrativo',
 };
 
+// TSTipoRetPISCofins (XSD v1.01): enum 0-9
 const TP_RET_PIS_COFINS_MAP: Record<string, string> = {
-    '1': 'PIS/COFINS/CSLL Retido',
-    '2': 'PIS/COFINS Retido',
-    '3': 'PIS Retido',
-    '4': 'COFINS Retido',
-    '5': 'CSLL Retido',
-    '6': 'PIS/CSLL Retido',
-    '7': 'COFINS/CSLL Retido',
-    '8': 'Não Retido',
-    '9': 'PIS/COFINS/CSLL Não Retido',
+    '0': 'PIS/COFINS/CSLL Não Retidos',
+    '1': 'PIS/COFINS Retidos',
+    '2': 'PIS/COFINS Não Retidos',
+    '3': 'PIS/COFINS/CSLL Retidos',
+    '4': 'PIS/COFINS Retidos, CSLL Não Retido',
+    '5': 'PIS Retido, COFINS/CSLL Não Retido',
+    '6': 'COFINS Retido, PIS/CSLL Não Retido',
+    '7': 'PIS Não Retido, COFINS/CSLL Retidos',
+    '8': 'PIS/COFINS Não Retidos, CSLL Retido',
+    '9': 'COFINS Não Retido, PIS/CSLL Retidos',
 };
 
 // ─── Estrutura de Classes (OOP) ──────────────────────────────────────────────
@@ -519,11 +528,17 @@ export class DanfseXmlParser extends BaseParser {
             issqnNaoSujeito,
             tribISSQN:    TRIB_ISSQN_MAP[tribISSQNRaw] || str(tribISSQNRaw),
             localIncid:   (() => {
-                const xLoc = str(infNFSe.xLocIncid);
                 const cLoc = String(infNFSe.cLocIncid || '');
+                // Heurística offline: se o nome do município de incidência não veio no XML, tenta buscar nas cidades do Prestador/Prestação resolvidas
+                let xLoc = infNFSe.xLocIncid ? String(infNFSe.xLocIncid) : '';
+                if (!xLoc && cLoc) {
+                    xLoc = this.munLookup.get(cLoc)?.xMun || '';
+                }
+                const resolvedXLoc = xLoc ? str(xLoc) : '-';
+
                 const ufIncid = this.munLookup.get(cLoc)?.uf || this.resolveUfFromCMun(cLoc);
                 const paisIncid = tribMun.cPaisResult ? String(tribMun.cPaisResult) : '';
-                const parts = [xLoc];
+                const parts = [resolvedXLoc];
                 if (ufIncid) parts.push(ufIncid);
                 if (paisIncid) parts.push(paisIncid);
                 return trunc(parts.join(' / '), 42);
