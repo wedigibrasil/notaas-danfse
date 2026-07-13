@@ -44,7 +44,10 @@ export class DanfseHtmlBuilder extends BaseBuilder {
         const showIM = opts?.showIM !== false;
 
         return `
-<tr class="sec-title"><td colspan="4">${this.esc(title)}</td></tr>
+<tr class="sec-title">
+  <td class="sec-title-label bg-cinza">${this.esc(title)}</td>
+  <td class="sec-title-spacer" colspan="3"></td>
+</tr>
 <tr>
   <td class="c"><span class="lbl">CNPJ / CPF / NIF</span><span class="val">${this.esc(pessoa.doc)}</span></td>
   ${showIM ? `<td class="c"><span class="lbl">Indicador Municipal (Inscrição)</span><span class="val">${this.esc(pessoa.IM)}</span></td>` : '<td class="c"></td>'}
@@ -78,7 +81,13 @@ export class DanfseHtmlBuilder extends BaseBuilder {
 <title>DANFSe v2.0</title>
 <style>
 @page { size: A4 portrait; margin: 0; }
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
 html, body { margin: 0; padding: 0; background: #fff; }
 
 :root {
@@ -91,7 +100,7 @@ html, body { margin: 0; padding: 0; background: #fff; }
   position: relative;
   width: 210mm; min-height: 297mm;
   margin: 0 auto;
-  padding: 3mm;
+  padding: 6mm 6mm 10mm 6mm;
   background: #fff;
   color: #000;
   font-family: var(--f-val);
@@ -105,9 +114,10 @@ table.danfse {
   border-collapse: collapse;
   border: var(--borda);
   table-layout: fixed;
+  margin-bottom: 8mm;
 }
 table.danfse td {
-  border: var(--borda);
+  border: none;
   vertical-align: top;
   padding: 1pt 2pt;
   overflow: hidden;
@@ -119,11 +129,15 @@ table.danfse td {
   display: block;
   font-family: var(--f-label);
   font-weight: 700;
-  font-size: 5pt;
-  color: #333;
+  font-size: 6pt;
+  color: #000;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+tr.ident-row .lbl {
+  font-size: 7pt;
+  text-transform: uppercase;
 }
 .c .val {
   display: block;
@@ -136,8 +150,12 @@ table.danfse td {
 .c .val.wrap { white-space: normal; word-break: break-word; }
 
 /* ── Título de seção ── */
-.sec-title td, tr.sec-title td {
-  background: #f2f2f2;
+tr.sec-title {
+  background: transparent !important;
+}
+.sec-title-label {
+  position: relative;
+  background: #f2f2f2 !important;
   font-family: var(--f-label);
   font-weight: 700;
   font-size: 7pt;
@@ -145,7 +163,27 @@ table.danfse td {
   height: 5mm;
   vertical-align: middle;
   padding-left: 3pt;
-  border: var(--borda);
+}
+.sec-title-label::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 1mm;
+  right: 0;
+  border-top: var(--borda);
+}
+.sec-title-spacer {
+  position: relative;
+  background: transparent !important;
+  height: 5mm;
+}
+.sec-title-spacer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 1mm;
+  border-top: var(--borda);
 }
 
 /* ── Supressão (Nota 2) ── */
@@ -169,6 +207,36 @@ table.danfse td {
   background: #f2f2f2;
   height: 12mm;
   vertical-align: middle;
+  border-bottom: var(--borda) !important;
+}
+
+/* ── Canhoto ── */
+table.canhoto-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: var(--borda);
+  table-layout: fixed;
+}
+table.canhoto-table td.canhoto-cell {
+  border: var(--borda) !important;
+  height: 8mm;
+  vertical-align: top;
+  padding: 2pt 3pt;
+}
+table.canhoto-table td.canhoto-cell .lbl {
+  display: block;
+  font-family: var(--f-label);
+  font-weight: 700;
+  font-size: 5pt;
+  color: #000;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+table.canhoto-table td.canhoto-cell .val {
+  display: block;
+  font-family: var(--f-val);
+  font-size: 5.5pt;
+  color: #000;
 }
 .cab-logo { width: 50mm; text-align: center; }
 .cab-logo img { max-height: 10mm; max-width: 46mm; }
@@ -180,7 +248,7 @@ table.danfse td {
   line-height: 1.3;
 }
 .cab-titulo .sub { font-size: 8pt; font-weight: 400; }
-.cab-titulo .val-jur { display: none; color: #e30613; font-size: 7pt; }
+.cab-titulo .val-jur { display: none; color: #e30613; font-size: 9pt; font-weight: 700; }
 .homologacao .cab-titulo .val-jur { display: block; }
 .cab-info {
   width: 50mm;
@@ -258,31 +326,34 @@ table.danfse td {
   </tr>
 
   <!-- ═══ IDENTIFICAÇÃO DA NFS-e ═══ -->
-  <tr>
+  <tr class="ident-row">
     <td class="c" colspan="3"><span class="lbl">CHAVE DE ACESSO DA NFS-E</span><span class="val" style="font-size:7.5pt;letter-spacing:.3pt">${this.esc(data.chaveAcesso)}</span></td>
     <td class="c-qr" rowspan="4">
       ${data.qrCodeDataUri ? `<img class="qr-img" src="${data.qrCodeDataUri}" alt="QR">` : ''}
       <div class="qr-txt">A autenticidade desta NFS-e pode ser verificada pela leitura deste código QR ou pela consulta da chave de acesso no portal nacional da NFS-e</div>
     </td>
   </tr>
-  <tr>
+  <tr class="ident-row">
     <td class="c"><span class="lbl">NÚMERO DA NFS-E</span><span class="val">${this.esc(data.nNFSe)}</span></td>
     <td class="c"><span class="lbl">COMPETÊNCIA DA NFS-E</span><span class="val">${this.esc(data.dCompet)}</span></td>
     <td class="c"><span class="lbl">DATA E HORA DA EMISSÃO DA NFS-E</span><span class="val">${this.esc(data.dhProc)}</span></td>
   </tr>
-  <tr>
+  <tr class="ident-row">
     <td class="c"><span class="lbl">NÚMERO DA DPS</span><span class="val">${this.esc(data.nDPS)}</span></td>
     <td class="c"><span class="lbl">SÉRIE DA DPS</span><span class="val">${this.esc(data.serie)}</span></td>
     <td class="c"><span class="lbl">DATA E HORA DA EMISSÃO DA DPS</span><span class="val">${this.esc(data.dhEmi)}</span></td>
   </tr>
-  <tr>
+  <tr class="ident-row">
     <td class="c bg-cinza"><span class="lbl">EMITENTE DA NFS-E</span><span class="val"><strong>${this.esc(data.tpEmit)}</strong></span></td>
     <td class="c"><span class="lbl">SITUAÇÃO DA NFS-E</span><span class="val">${this.esc(data.cStat)}</span></td>
     <td class="c"><span class="lbl">FINALIDADE</span><span class="val">${this.esc(data.finNFSe)}</span></td>
   </tr>
 
   <!-- ═══ PRESTADOR / FORNECEDOR ═══ -->
-  <tr class="sec-title"><td colspan="4">Prestador / Fornecedor</td></tr>
+  <tr class="sec-title">
+    <td class="sec-title-label bg-cinza">Prestador / Fornecedor</td>
+    <td class="sec-title-spacer" colspan="3"></td>
+  </tr>
   <tr>
     <td class="c"><span class="lbl">CNPJ / CPF / NIF</span><span class="val">${this.esc(data.prestador.doc)}</span></td>
     <td class="c"><span class="lbl">Indicador Municipal (Inscrição)</span><span class="val">${this.esc(data.prestador.IM)}</span></td>
@@ -315,7 +386,10 @@ table.danfse td {
   ${this.buildPessoaRows('Intermediário da Operação', data.intermediario, 'INTERMEDIÁRIO DA OPERAÇÃO NÃO IDENTIFICADO NA NFS-e')}
 
   <!-- ═══ SERVIÇO PRESTADO ═══ -->
-  <tr class="sec-title"><td colspan="4">Serviço Prestado</td></tr>
+  <tr class="sec-title">
+    <td class="sec-title-label bg-cinza">Serviço Prestado</td>
+    <td class="sec-title-spacer" colspan="3"></td>
+  </tr>
   <tr>
     <td class="c"><span class="lbl">Cód. Trib. Nacional / Municipal</span><span class="val">${this.esc(data.codTrib)}</span></td>
     <td class="c"><span class="lbl">Código da NBS</span><span class="val">${this.esc(data.cNBS)}</span></td>
@@ -332,7 +406,10 @@ table.danfse td {
   ${data.issqnNaoSujeito ? `
   <tr><td colspan="4" class="supr">TRIBUTAÇÃO MUNICIPAL (ISSQN) - OPERAÇÃO NÃO SUJEITA AO ISSQN</td></tr>
   ` : `
-  <tr class="sec-title"><td colspan="4">Tributação Municipal (ISSQN)</td></tr>
+  <tr class="sec-title">
+    <td class="sec-title-label bg-cinza">Tributação Municipal (ISSQN)</td>
+    <td class="sec-title-spacer" colspan="3"></td>
+  </tr>
   <tr>
     <td class="c"><span class="lbl">Tipo de Tributação do ISSQN</span><span class="val">${this.esc(data.tribISSQN)}</span></td>
     <td class="c" colspan="3"><span class="lbl">Município / Sigla UF / País de Incidência do ISSQN</span><span class="val">${this.esc(data.localIncid)}</span></td>
@@ -358,7 +435,10 @@ table.danfse td {
   `}
 
   <!-- ═══ TRIBUTAÇÃO FEDERAL (EXCETO CBS) ═══ -->
-  <tr class="sec-title"><td colspan="4">Tributação Federal (Exceto CBS)</td></tr>
+  <tr class="sec-title">
+    <td class="sec-title-label bg-cinza">Tributação Federal (Exceto CBS)</td>
+    <td class="sec-title-spacer" colspan="3"></td>
+  </tr>
   <tr>
     <td class="c"><span class="lbl">IRRF</span><span class="val">${this.esc(data.vRetIRRF)}</span></td>
     <td class="c"><span class="lbl">Contrib. Previdenciária - Retida</span><span class="val">${this.esc(data.vRetCP)}</span></td>
@@ -374,7 +454,10 @@ table.danfse td {
   ` : ''}
 
   <!-- ═══ TRIBUTAÇÃO IBS / CBS ═══ -->
-  <tr class="sec-title"><td colspan="4">Tributação IBS / CBS</td></tr>
+  <tr class="sec-title">
+    <td class="sec-title-label bg-cinza">Tributação IBS / CBS</td>
+    <td class="sec-title-spacer" colspan="3"></td>
+  </tr>
   <tr>
     <td class="c"><span class="lbl">CST / cClassTrib</span><span class="val">${this.esc(data.cstClass)}</span></td>
     <td class="c" colspan="3"><span class="lbl">Ind. Operação / Cód. IBGE Inc. / Município Inc. / UF</span><span class="val">${this.esc(data.indOpLocal)}</span></td>
@@ -399,7 +482,10 @@ table.danfse td {
   </tr>
 
   <!-- ═══ VALOR TOTAL DA NFS-e ═══ -->
-  <tr class="sec-title"><td colspan="4">Valor Total da NFS-e</td></tr>
+  <tr class="sec-title">
+    <td class="sec-title-label bg-cinza">Valor Total da NFS-e</td>
+    <td class="sec-title-spacer" colspan="3"></td>
+  </tr>
   <tr>
     <td class="c"><span class="lbl">Valor da Operação / Serviço</span><span class="val"><strong>${this.esc(data.vServ)}</strong></span></td>
     <td class="c"><span class="lbl">Desconto Incondicionado</span><span class="val">${this.esc(data.vDescIncond)}</span></td>
@@ -414,18 +500,28 @@ table.danfse td {
   </tr>
 
   <!-- ═══ INFORMAÇÕES COMPLEMENTARES ═══ -->
-  <tr class="sec-title"><td colspan="4">Informações Complementares</td></tr>
+  <tr class="sec-title">
+    <td class="sec-title-label bg-cinza">Informações Complementares</td>
+    <td class="sec-title-spacer" colspan="3"></td>
+  </tr>
   <tr class="info-compl">
     <td class="c" colspan="4" style="height:auto;min-height:20mm"><span class="val wrap">${this.esc(data.infoCompl)}</span></td>
   </tr>
 
   <!-- ═══ CANHOTO (Nota 11 — opcional, implementado) ═══ -->
-  <tr class="sec-title"><td colspan="4">Canhoto</td></tr>
+  ${data.canhotNumChave ? `
   <tr>
-    <td class="c"><span class="lbl">Data Cientificação</span><span class="val"></span></td>
-    <td class="c"><span class="lbl">Identificação e Assinatura</span><span class="val"></span></td>
-    <td class="c" colspan="2"><span class="lbl">Nº NFS-e / Chave</span><span class="val" style="font-size:5.5pt;letter-spacing:.2pt;word-break:break-all">${this.esc(data.canhotNumChave)}</span></td>
+    <td colspan="4" style="padding-top: 10pt; padding-bottom: 4pt;">
+      <table class="canhoto-table">
+        <tr>
+          <td class="canhoto-cell" style="width: 25%;"><span class="lbl">**** DATA CIENTIFICAÇÃO:</span><span class="val"></span></td>
+          <td class="canhoto-cell" style="width: 45%;"><span class="lbl">IDENTIFICAÇÃO E ASSINATURA</span><span class="val"></span></td>
+          <td class="canhoto-cell" style="width: 30%;"><span class="lbl">Nº NFS-e / CHAVE NFS-e</span><span class="val" style="font-size:5.5pt;letter-spacing:.2pt;word-break:break-all">${this.esc(data.canhotNumChave)}</span></td>
+        </tr>
+      </table>
+    </td>
   </tr>
+  ` : ''}
 </table>
 
 </div>
