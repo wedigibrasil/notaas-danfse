@@ -7,7 +7,7 @@
 
 import { XMLParser } from 'fast-xml-parser';
 import QRCode from 'qrcode';
-import type { DanfseData, DanfsePessoa, DanfsePrestador } from './types';
+import type { DanfseData, DanfsePessoa, DanfsePrestador } from './types.js';
 
 // ─── Helpers do Módulo (Encapsulados) ────────────────────────────────────────
 

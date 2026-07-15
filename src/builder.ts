@@ -5,8 +5,8 @@
  * Layout conforme NT-008 v1.01 — formato A4 retrato (210×297mm).
  */
 
-import type { DanfseData, DanfsePessoa } from './types';
-import { LOGO_NFSE_PNG_BASE64 } from './logo';
+import type { DanfseData, DanfsePessoa } from './types.js';
+import { LOGO_NFSE_PNG_BASE64 } from './logo.js';
 
 export interface IDanfseBuilder {
     build(data: DanfseData): string;
