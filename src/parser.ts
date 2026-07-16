@@ -367,7 +367,9 @@ export class DanfseXmlParser extends BaseParser {
         const destinatario = this.extractPessoa(dest);
 
         let destinatarioIgualTomador = false;
-        if (toma && dest) {
+        if (!dest) {
+            destinatarioIgualTomador = true;
+        } else if (toma) {
             const tomaDoc = this.extractDoc(toma);
             const destDoc = this.extractDoc(dest);
             if (tomaDoc !== DASH && tomaDoc === destDoc) {
