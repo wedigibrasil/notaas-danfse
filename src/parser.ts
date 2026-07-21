@@ -85,6 +85,17 @@ function get(obj: Record<string, unknown>, path: string): unknown {
 
 // ─── Domínios e Mapeamentos ──────────────────────────────────────────────────
 
+const CSTAT_MAP: Record<string, string> = {
+    '100': 'NFS-e Gerada',
+    '102': 'NFS-e de Decisão Judicial',
+    '103': 'NFS-e Avulsa',
+    '107': 'NFS-e MEI',
+};
+
+const FIN_NFSE_MAP: Record<string, string> = {
+    '0': 'NFS-e regular',
+};
+
 // TSAmbGeradorNFSe: 1=Prefeitura | 2=Sistema Nacional da NFS-e
 const AMB_GER_MAP: Record<string, string> = {
     '1': 'Prefeitura',
@@ -515,8 +526,11 @@ export class DanfseXmlParser extends BaseParser {
             serie:        str(infDPS.serie),
             dhEmi:        fmtDateTime(infDPS.dhEmi),
             tpEmit:       EMIT_MAP[String(infDPS.tpEmit)] || str(infDPS.tpEmit),
-            cStat:        str(cStatRaw),
-            finNFSe:      str(get(ibscbs as Record<string, unknown>, 'finNFSe') ?? infDPS.finNFSe),
+            cStat:        CSTAT_MAP[cStatRaw] || cStatRaw,
+            finNFSe:      (() => {
+                const raw = str(get(ibscbs as Record<string, unknown>, 'finNFSe') ?? infDPS.finNFSe);
+                return FIN_NFSE_MAP[raw] || raw;
+            })(),
             prestador,
             tomador,
             destinatario:              destinatarioIgualTomador ? null : destinatario,

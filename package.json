@@ -1,6 +1,6 @@
 {
   "name": "@notaas/danfse-viewer",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Parser de XML e visualizador da NFS-e Nacional para PDF/HTML. Implementação open-source de referência para o DANFSe v2.0 conforme a Nota Técnica NT-008.",
   "type": "module",
   "main": "dist/index.js",
