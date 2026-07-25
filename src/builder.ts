@@ -250,11 +250,12 @@ table.canhoto-table td.canhoto-cell .val {
 .homologacao .cab-titulo .val-jur { display: block; }
 .cab-info {
   width: 55mm;
-  font-size: 5.5pt;
-  line-height: 1.3;
+  font-size: 6pt;
+  line-height: 1.4;
   padding: 2pt 3pt;
   white-space: nowrap;
 }
+.cab-info strong { font-size: 8pt; }
 
 /* ── QR Code (dentro da coluna c-qr da tabela) ── */
 .c-qr {
@@ -494,7 +495,7 @@ tr.sec-title-full td {
   <!-- ═══ CANHOTO (Nota 11 — opcional, implementado) ═══ -->
   ${data.canhotNumChave ? `
   <tr>
-    <td colspan="4" style="padding-top: 10pt; padding-bottom: 4pt;">
+    <td colspan="4" style="padding-top: 40pt; padding-bottom: 4pt;">
       <table class="canhoto-table">
         <tr>
           <td class="canhoto-cell" style="width: 25%;"><span class="lbl">**** DATA CIENTIFICAÇÃO:</span><span class="val"></span></td>
