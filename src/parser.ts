@@ -585,10 +585,24 @@ export class DanfseXmlParser extends BaseParser {
             vISSQN:       fmtMoney(valoresNFSe.vISSQN),
             vRetIRRF:     fmtMoney(tribFed.vRetIRRF),
             vRetCP:       fmtMoney(tribFed.vRetCP),
-            vRetCSLL:     fmtMoney(tribFed.vRetCSLL),
+            ...(() => {
+                const vRetCSLLNum = toNum(tribFed.vRetCSLL);
+                const vPisNum = toNum(pisCofins.vPis || pisCofins.vPIS);
+                const vCofinsNum = toNum(pisCofins.vCofins || pisCofins.vCOFINS);
+                const tpRetRaw = String(pisCofins.tpRetPisCofins || '');
+                const isRetido = tpRetRaw === '1';
+
+                const vRetCSLLFinal = isRetido ? (vRetCSLLNum + vPisNum + vCofinsNum) : vRetCSLLNum;
+                const vPisFinal = isRetido ? 0 : vPisNum;
+                const vCofinsFinal = isRetido ? 0 : vCofinsNum;
+
+                return {
+                    vRetCSLL: fmtMoney(vRetCSLLFinal),
+                    vPis: fmtMoney(vPisFinal),
+                    vCofins: fmtMoney(vCofinsFinal),
+                };
+            })(),
             exibirPisCofins,
-            vPis:         fmtMoney(pisCofins.vPis || pisCofins.vPIS),
-            vCofins:      fmtMoney(pisCofins.vCofins || pisCofins.vCOFINS),
             tpRetPisCofins: trunc(TP_RET_PIS_COFINS_MAP[String(pisCofins.tpRetPisCofins)] || str(pisCofins.tpRetPisCofins), 35),
             cstClass:     `${str(gIBSCBS.CST)} / ${str(gIBSCBS.cClassTrib)}`,
             indOpLocal:   trunc(`${str(ibscbs.cIndOp)} / ${str(infNFSe.IBSCBS?.cLocalidadeIncid || ibscbs.cLocalidadeIncid)} / ${str(infNFSe.IBSCBS?.xLocalidadeIncid || ibscbs.xLocalidadeIncid)}`, 56),
