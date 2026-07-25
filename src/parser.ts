@@ -441,29 +441,41 @@ export class DanfseXmlParser extends BaseParser {
         const vDescCondIncond = valoresDPS.vDescCondIncond || valoresNFSe.vDescCondIncond || {};
 
         const infoCompParts: string[] = [];
-        const servInfoCompl = serv.infoCompl || {};
-        if (servInfoCompl.xInfComp) infoCompParts.push(`Inf. Cont.: ${servInfoCompl.xInfComp}`);
+        const servInfoCompl = (serv.infoCompl || (infNFSe.serv as Record<string, unknown> | undefined)?.infoCompl || infNFSe.infoCompl || {}) as Record<string, unknown>;
 
-        const subst = infDPS.subst || {};
-        if (subst.chSubstda) infoCompParts.push(`NFS-e Subst.: ${subst.chSubstda}`);
+        const xInfCompVal = str(servInfoCompl.xInfComp);
+        if (xInfCompVal !== DASH) infoCompParts.push(`Inf. Cont.: ${xInfCompVal}`);
 
-        if (infDPS.docRef) infoCompParts.push(`Doc. Ref.: ${infDPS.docRef}`);
+        const subst = (infDPS.subst || {}) as Record<string, unknown>;
+        const chSubstdaVal = str(subst.chSubstda);
+        if (chSubstdaVal !== DASH) infoCompParts.push(`NFS-e Subst.: ${chSubstdaVal}`);
 
-        const obra = serv.obra || {};
-        if (obra.cObra) infoCompParts.push(`Cod. Obra: ${obra.cObra}`);
+        const docRefVal = str(infDPS.docRef);
+        if (docRefVal !== DASH) infoCompParts.push(`Doc. Ref.: ${docRefVal}`);
 
-        const imovel = ibscbs.imovel || {};
-        if (imovel.inscImobFisc) infoCompParts.push(`Insc. Imob.: ${imovel.inscImobFisc}`);
+        const obra = (serv.obra || {}) as Record<string, unknown>;
+        const cObraVal = str(obra.cObra);
+        if (cObraVal !== DASH) infoCompParts.push(`Cod. Obra: ${cObraVal}`);
 
-        const atvEvento = serv.atvEvento || {};
-        if (atvEvento.idAtvEvt) infoCompParts.push(`Cod. Evt.: ${atvEvento.idAtvEvt}`);
+        const imovel = (ibscbs.imovel || {}) as Record<string, unknown>;
+        const inscImobFiscVal = str(imovel.inscImobFisc);
+        if (inscImobFiscVal !== DASH) infoCompParts.push(`Insc. Imob.: ${inscImobFiscVal}`);
 
-        if (infDPS.idDocTec) infoCompParts.push(`Doc. Tec.: ${infDPS.idDocTec}`);
+        const atvEvento = (serv.atvEvento || {}) as Record<string, unknown>;
+        const idAtvEvtVal = str(atvEvento.idAtvEvt);
+        if (idAtvEvtVal !== DASH) infoCompParts.push(`Cod. Evt.: ${idAtvEvtVal}`);
 
-        if (servInfoCompl.xPed) infoCompParts.push(`Núm. Ped.: ${servInfoCompl.xPed}`);
-        if (servInfoCompl.xItemPed) infoCompParts.push(`Item Ped.: ${servInfoCompl.xItemPed}`);
+        const idDocTecVal = str(infDPS.idDocTec);
+        if (idDocTecVal !== DASH) infoCompParts.push(`Doc. Tec.: ${idDocTecVal}`);
 
-        if (servInfoCompl.xOutInf) infoCompParts.push(`Inf. A. T. Mun.: ${servInfoCompl.xOutInf}`);
+        const xPedVal = str(servInfoCompl.xPed);
+        if (xPedVal !== DASH) infoCompParts.push(`Núm. Ped.: ${xPedVal}`);
+
+        const xItemPedVal = str(servInfoCompl.xItemPed);
+        if (xItemPedVal !== DASH) infoCompParts.push(`Item Ped.: ${xItemPedVal}`);
+
+        const xOutInfVal = str(servInfoCompl.xOutInf);
+        if (xOutInfVal !== DASH) infoCompParts.push(`Inf. A. T. Mun.: ${xOutInfVal}`);
 
         const totTrib = trib.totTrib || valoresNFSe.trib?.totTrib || {};
         const vTotTrib = totTrib.vTotTrib || {};
