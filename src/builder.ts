@@ -3,6 +3,11 @@
  *
  * Implementação Orientada a Objetos para renderização do template HTML.
  * Layout conforme NT-008 v1.02 — formato A4 retrato (210×297mm).
+ *
+ * Estrutura de cada bloco:
+ *   - 1ª <tr> (row-sec-top): Col1 = título do bloco (fundo cinza),
+ *     Cols 2-4 = primeiros campos do bloco.
+ *   - <tr> subsequentes: campos restantes.
  */
 
 import type { DanfseData, DanfsePessoa } from './types.js';
@@ -31,6 +36,17 @@ export class DanfseHtmlBuilder extends BaseBuilder {
         return `data:image/png;base64,${LOGO_NFSE_PNG_BASE64}`;
     }
 
+    /**
+     * Gera as linhas de uma pessoa (Prestador, Tomador, Destinatário, Intermediário).
+     *
+     * Quando a pessoa existe:
+     *   Row 1 (row-sec-top): [Título bg-cinza] [CNPJ] [IM ou vazio] [Telefone]
+     *   Row 2: [Nome colspan=2] [Município] [Código IBGE / CEP]
+     *   Row 3: [Endereço colspan=2] [E-mail colspan=2]
+     *
+     * Quando a pessoa não existe:
+     *   Row única de supressão (supr) com texto centralizado e bordas.
+     */
     private buildPessoaRows(
         title: string,
         pessoa: DanfsePessoa | null,
@@ -38,20 +54,17 @@ export class DanfseHtmlBuilder extends BaseBuilder {
         opts?: { showIM?: boolean },
     ): string {
         if (!pessoa) {
-            return `<tr class="sec-title"><td colspan="4" class="supr">${this.esc(suppText)}</td></tr>`;
+            return `<tr class="row-sec-top"><td colspan="4" class="supr">${this.esc(suppText)}</td></tr>`;
         }
 
         const showIM = opts?.showIM !== false;
 
         return `
-<tr class="sec-title">
-  <td class="sec-title-label bg-cinza" colspan="4">${this.esc(title)}</td>
-</tr>
-<tr>
+<tr class="row-sec-top">
+  <td class="sec-title-label bg-cinza">${this.esc(title)}</td>
   <td class="c"><span class="lbl">CNPJ / CPF / NIF</span><span class="val">${this.esc(pessoa.doc)}</span></td>
   ${showIM ? `<td class="c"><span class="lbl">Indicador Municipal (Inscrição)</span><span class="val">${this.esc(pessoa.IM)}</span></td>` : '<td class="c"></td>'}
   <td class="c"><span class="lbl">Telefone</span><span class="val">${this.esc(pessoa.fone)}</span></td>
-  <td class="c"></td>
 </tr>
 <tr>
   <td class="c" colspan="2"><span class="lbl">Nome / Nome Empresarial</span><span class="val">${this.esc(pessoa.xNome)}</span></td>
@@ -148,8 +161,8 @@ tr.ident-row .lbl {
 }
 .c .val.wrap { white-space: normal; word-break: break-word; }
 
-/* ── Título de seção ── */
-tr.sec-title td {
+/* ── Linha do título do bloco (título na col1 + campos nas cols 2-4) ── */
+tr.row-sec-top td {
   border-top: var(--borda) !important;
 }
 .sec-title-label {
@@ -158,12 +171,12 @@ tr.sec-title td {
   font-weight: 700;
   font-size: 7pt;
   text-transform: uppercase;
-  height: 5mm;
+  height: 6mm;
   vertical-align: middle;
   padding-left: 3pt;
 }
 
-/* ── Supressão (Nota 2) ── */
+/* ── Supressão (Nota 2 — quando bloco é omitido) ── */
 .supr {
   font-family: var(--f-val);
   font-size: 6.5pt;
@@ -282,6 +295,11 @@ table.canhoto-table td.canhoto-cell .val {
 /* ── Desc. serviço e info compl expandem ── */
 .desc-serv .val.wrap { font-size: 6.5pt; line-height: 1.2; }
 .info-compl .val.wrap { font-size: 6.5pt; line-height: 1.2; }
+
+/* ── Info Complementares título full-width ── */
+tr.sec-title-full td {
+  border-top: var(--borda) !important;
+}
 </style>
 </head>
 <body>
@@ -331,14 +349,11 @@ table.canhoto-table td.canhoto-cell .val {
   </tr>
 
   <!-- ═══ PRESTADOR / FORNECEDOR ═══ -->
-  <tr class="sec-title">
-    <td class="sec-title-label bg-cinza" colspan="4">Prestador / Fornecedor</td>
-  </tr>
-  <tr>
+  <tr class="row-sec-top">
+    <td class="sec-title-label bg-cinza">Prestador / Fornecedor</td>
     <td class="c"><span class="lbl">CNPJ / CPF / NIF</span><span class="val">${this.esc(data.prestador.doc)}</span></td>
     <td class="c"><span class="lbl">Indicador Municipal (Inscrição)</span><span class="val">${this.esc(data.prestador.IM)}</span></td>
     <td class="c"><span class="lbl">Telefone</span><span class="val">${this.esc(data.prestador.fone)}</span></td>
-    <td class="c"></td>
   </tr>
   <tr>
     <td class="c" colspan="2"><span class="lbl">Nome / Nome Empresarial</span><span class="val">${this.esc(data.prestador.xNome)}</span></td>
@@ -359,20 +374,18 @@ table.canhoto-table td.canhoto-cell .val {
 
   <!-- ═══ DESTINATÁRIO ═══ -->
   ${data.destinatarioIgualTomador
-    ? `<tr class="sec-title"><td colspan="4" class="supr">O DESTINATÁRIO É O PRÓPRIO TOMADOR/ADQUIRENTE DA OPERAÇÃO</td></tr>`
+    ? `<tr class="row-sec-top"><td colspan="4" class="supr">O DESTINATÁRIO É O PRÓPRIO TOMADOR/ADQUIRENTE DA OPERAÇÃO</td></tr>`
     : this.buildPessoaRows('Destinatário da Operação', data.destinatario, 'DESTINATÁRIO DA OPERAÇÃO NÃO IDENTIFICADO NA NFS-e', { showIM: false })}
 
   <!-- ═══ INTERMEDIÁRIO ═══ -->
   ${this.buildPessoaRows('Intermediário da Operação', data.intermediario, 'INTERMEDIÁRIO DA OPERAÇÃO NÃO IDENTIFICADO NA NFS-e')}
 
   <!-- ═══ SERVIÇO PRESTADO ═══ -->
-  <tr class="sec-title">
-    <td class="sec-title-label bg-cinza" colspan="4">Serviço Prestado</td>
-  </tr>
-  <tr>
+  <tr class="row-sec-top">
+    <td class="sec-title-label bg-cinza">Serviço Prestado</td>
     <td class="c"><span class="lbl">Código de Tributação Nacional / Municipal</span><span class="val">${this.esc(data.codTrib)}</span></td>
     <td class="c"><span class="lbl">Código da NBS</span><span class="val">${this.esc(data.cNBS)}</span></td>
-    <td class="c" colspan="2"><span class="lbl">Local da Prestação / Sigla UF / País</span><span class="val">${this.esc(data.localPrestacao)}</span></td>
+    <td class="c"><span class="lbl">Local da Prestação / Sigla UF / País</span><span class="val">${this.esc(data.localPrestacao)}</span></td>
   </tr>
   <tr>
     <td class="c" colspan="4" style="height:auto;min-height:4mm"><span class="val wrap" style="font-size:6pt">${this.esc(data.descCodTrib)}</span></td>
@@ -383,14 +396,12 @@ table.canhoto-table td.canhoto-cell .val {
 
   <!-- ═══ TRIBUTAÇÃO MUNICIPAL (ISSQN) ═══ -->
   ${data.issqnNaoSujeito ? `
-  <tr class="sec-title"><td colspan="4" class="supr">TRIBUTAÇÃO MUNICIPAL (ISSQN) - OPERAÇÃO NÃO SUJEITA AO ISSQN</td></tr>
+  <tr class="row-sec-top"><td colspan="4" class="supr">TRIBUTAÇÃO MUNICIPAL (ISSQN) - OPERAÇÃO NÃO SUJEITA AO ISSQN</td></tr>
   ` : `
-  <tr class="sec-title">
-    <td class="sec-title-label bg-cinza" colspan="4">Tributação Municipal (ISSQN)</td>
-  </tr>
-  <tr>
+  <tr class="row-sec-top">
+    <td class="sec-title-label bg-cinza">Tributação Municipal (ISSQN)</td>
     <td class="c"><span class="lbl">Tipo de Tributação do ISSQN</span><span class="val">${this.esc(data.tribISSQN)}</span></td>
-    <td class="c" colspan="3"><span class="lbl">Município / Sigla UF / País de Incidência do ISSQN</span><span class="val">${this.esc(data.localIncid)}</span></td>
+    <td class="c" colspan="2"><span class="lbl">Município / Sigla UF / País de Incidência do ISSQN</span><span class="val">${this.esc(data.localIncid)}</span></td>
   </tr>
   <tr>
     <td class="c"><span class="lbl">Regime Especial de Tributação do ISSQN</span><span class="val">${this.esc(data.regEspTrib)}</span></td>
@@ -413,36 +424,31 @@ table.canhoto-table td.canhoto-cell .val {
   `}
 
   <!-- ═══ TRIBUTAÇÃO FEDERAL (EXCETO CBS) ═══ -->
-  <tr class="sec-title">
-    <td class="sec-title-label bg-cinza" colspan="4">Tributação Federal (Exceto CBS)</td>
-  </tr>
-  <tr>
+  <tr class="row-sec-top">
+    <td class="sec-title-label bg-cinza">Tributação Federal (Exceto CBS)</td>
     <td class="c"><span class="lbl">IRRF</span><span class="val">${this.esc(data.vRetIRRF)}</span></td>
     <td class="c"><span class="lbl">Contribuição Previdenciária - Retida</span><span class="val">${this.esc(data.vRetCP)}</span></td>
     <td class="c"><span class="lbl">Contribuições Sociais - Retidas</span><span class="val">${this.esc(data.vRetCSLL)}</span></td>
-    <td class="c"></td>
   </tr>
   ${data.exibirPisCofins ? `
   <tr>
     <td class="c"><span class="lbl">PIS - Débito Apuração Própria</span><span class="val">${this.esc(data.vPis)}</span></td>
     <td class="c"><span class="lbl">COFINS - Débito Apuração Própria</span><span class="val">${this.esc(data.vCofins)}</span></td>
-    <td class="c" colspan="2"><span class="lbl">Descrição Contrib. Sociais - Retidas</span><span class="val">${this.esc(data.tpRetPisCofins)}</span></td>
+    <td class="c" colspan="2"><span class="lbl">Descrição Contribuições Sociais - Retidas</span><span class="val">${this.esc(data.tpRetPisCofins)}</span></td>
   </tr>
   ` : ''}
 
   <!-- ═══ TRIBUTAÇÃO IBS / CBS ═══ -->
-  <tr class="sec-title">
-    <td class="sec-title-label bg-cinza" colspan="4">Tributação IBS / CBS</td>
-  </tr>
-  <tr>
+  <tr class="row-sec-top">
+    <td class="sec-title-label bg-cinza">Tributação IBS / CBS</td>
     <td class="c"><span class="lbl">CST / cClassTrib</span><span class="val">${this.esc(data.cstClass)}</span></td>
-    <td class="c" colspan="3"><span class="lbl">Indicador de Operação / Código IBGE do Município de Incidência / Município de Incidência / Sigla UF</span><span class="val">${this.esc(data.indOpLocal)}</span></td>
+    <td class="c" colspan="2"><span class="lbl">Indicador de Operação / Código IBGE Incidência / Município Incidência / UF</span><span class="val">${this.esc(data.indOpLocal)}</span></td>
   </tr>
   <tr>
     <td class="c"><span class="lbl">Exclusões e Reduções da Base de Cálculo</span><span class="val">${this.esc(data.exclRedBC)}</span></td>
     <td class="c"><span class="lbl">Base de Cálculo Após Exclusões e Reduções</span><span class="val">${this.esc(data.vBCIbs)}</span></td>
-    <td class="c"><span class="lbl">Reduções da Alíquota do IBS / Reduções da Alíquota da CBS</span><span class="val">${this.esc(data.redAliq)}</span></td>
-    <td class="c"><span class="lbl">Alíquota do IBS Estadual / IBS Municipal</span><span class="val">${this.esc(data.aliqIbs)}</span></td>
+    <td class="c"><span class="lbl">Reduções da Alíquota IBS / Reduções da Alíquota CBS</span><span class="val">${this.esc(data.redAliq)}</span></td>
+    <td class="c"><span class="lbl">Alíquota IBS UF / IBS Municipal</span><span class="val">${this.esc(data.aliqIbs)}</span></td>
   </tr>
   <tr>
     <td class="c"><span class="lbl">Alíquota Efetiva Municipal – IBS</span><span class="val">${this.esc(data.pAliqEfetMun)}</span></td>
@@ -458,24 +464,21 @@ table.canhoto-table td.canhoto-cell .val {
   </tr>
 
   <!-- ═══ VALOR TOTAL DA NFS-e ═══ -->
-  <tr class="sec-title">
-    <td class="sec-title-label bg-cinza" colspan="4">Valor Total da NFS-e</td>
-  </tr>
-  <tr>
+  <tr class="row-sec-top">
+    <td class="sec-title-label bg-cinza">Valor Total da NFS-e</td>
     <td class="c"><span class="lbl">Valor da Operação / Serviço</span><span class="val"><strong>${this.esc(data.vServ)}</strong></span></td>
     <td class="c"><span class="lbl">Desconto Incondicionado</span><span class="val">${this.esc(data.vDescIncond)}</span></td>
     <td class="c"><span class="lbl">Desconto Condicionado</span><span class="val">${this.esc(data.vDescCond)}</span></td>
-    <td class="c"></td>
   </tr>
   <tr>
     <td class="c"><span class="lbl">Total das Retenções (ISSQN / Federais)</span><span class="val">${this.esc(data.vTotalRet)}</span></td>
     <td class="c"><span class="lbl">Valor Líquido da NFS-e</span><span class="val"><strong>${this.esc(data.vLiq)}</strong></span></td>
     <td class="c"><span class="lbl">Total do IBS/CBS</span><span class="val">${this.esc(data.totIbsCbs)}</span></td>
-    <td class="c bg-cinza"><span class="lbl">Valor Líquido da NFS-e + IBS/CBS</span><span class="val"><strong>${this.esc(data.vTotNF)}</strong></span></td>
+    <td class="c bg-cinza"><span class="lbl">Valor Líquido + IBS/CBS</span><span class="val"><strong>${this.esc(data.vTotNF)}</strong></span></td>
   </tr>
 
   <!-- ═══ INFORMAÇÕES COMPLEMENTARES ═══ -->
-  <tr class="sec-title">
+  <tr class="sec-title-full">
     <td class="sec-title-label bg-cinza" colspan="4">Informações Complementares</td>
   </tr>
   <tr class="info-compl">
