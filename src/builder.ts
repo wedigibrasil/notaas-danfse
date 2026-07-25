@@ -121,13 +121,18 @@ html, body { margin: 0; padding: 0; background: #fff; }
   line-height: 1.25;
 }
 
+/* ── Borda externa do formulário (NT-008 §2.2.2: margem 0,15–0,20cm; §2.2.3: borda 1pt) ── */
+.form-borda {
+  border: var(--borda-ext);
+  padding: 1.5mm;
+  margin-bottom: 8mm;
+}
+
 /* ── tabela principal ── */
 table.danfse {
   width: 100%;
   border-collapse: collapse;
-  border: var(--borda-ext);
   table-layout: fixed;
-  margin-bottom: 8mm;
 }
 table.danfse td {
   border: none;
@@ -308,6 +313,7 @@ tr.sec-title-full td {
   <div class="marca cancel"><span>CANCELADA</span></div>
   <div class="marca subst"><span>SUBSTITUÍDA</span></div>
 
+<div class="form-borda">
 <table class="danfse">
   <!-- ═══ CABEÇALHO ═══ -->
   <tr>
@@ -500,6 +506,7 @@ tr.sec-title-full td {
   </tr>
   ` : ''}
 </table>
+</div>
 
 </div>
 </body>
