@@ -105,6 +105,7 @@ html, body { margin: 0; padding: 0; background: #fff; }
 :root {
   --f-label: Arial, Helvetica, sans-serif;
   --f-val: "Microsoft Sans Serif", Tahoma, Arial, sans-serif;
+  --borda-ext: 1pt solid #000;
   --borda: .5pt solid #000;
 }
 
@@ -117,26 +118,26 @@ html, body { margin: 0; padding: 0; background: #fff; }
   color: #000;
   font-family: var(--f-val);
   font-size: 7pt;
-  line-height: 1.15;
+  line-height: 1.25;
 }
 
 /* ── tabela principal ── */
 table.danfse {
   width: 100%;
   border-collapse: collapse;
-  border: var(--borda);
+  border: var(--borda-ext);
   table-layout: fixed;
   margin-bottom: 8mm;
 }
 table.danfse td {
   border: none;
   vertical-align: top;
-  padding: 1pt 2pt;
+  padding: 2pt 3pt;
   overflow: hidden;
 }
 
-/* ── Célula padrão ── */
-.c { height: 6mm; }
+/* ── Célula padrão (NT-008: Alt. = 0,63–0,67cm) ── */
+.c { height: 6.7mm; }
 .c .lbl {
   display: block;
   font-family: var(--f-label);
@@ -146,6 +147,7 @@ table.danfse td {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: .5pt;
 }
 tr.ident-row .lbl {
   font-size: 7pt;
@@ -163,7 +165,7 @@ tr.ident-row .lbl {
 
 /* ── Linha do título do bloco (título na col1 + campos nas cols 2-4) ── */
 tr.row-sec-top td {
-  border-top: var(--borda) !important;
+  border-top: var(--borda);
 }
 .sec-title-label {
   background: #f2f2f2 !important;
@@ -171,7 +173,7 @@ tr.row-sec-top td {
   font-weight: 700;
   font-size: 7pt;
   text-transform: uppercase;
-  height: 6mm;
+  height: 6.7mm;
   vertical-align: middle;
   padding-left: 3pt;
 }
@@ -180,12 +182,10 @@ tr.row-sec-top td {
 .supr {
   font-family: var(--f-val);
   font-size: 6.5pt;
-  height: 5mm;
+  height: 6mm;
   vertical-align: middle;
   text-align: center;
-  border-top: var(--borda) !important;
-  border-bottom: var(--borda) !important;
-  padding: 2pt 3pt;
+  padding: 3pt 4pt;
   font-style: italic;
   color: #444;
 }
@@ -293,12 +293,12 @@ table.canhoto-table td.canhoto-cell .val {
 .substituida .marca.subst { display: flex; }
 
 /* ── Desc. serviço e info compl expandem ── */
-.desc-serv .val.wrap { font-size: 6.5pt; line-height: 1.2; }
-.info-compl .val.wrap { font-size: 6.5pt; line-height: 1.2; }
+.desc-serv .val.wrap { font-size: 6.5pt; line-height: 1.3; }
+.info-compl .val.wrap { font-size: 6.5pt; line-height: 1.3; }
 
 /* ── Info Complementares título full-width ── */
 tr.sec-title-full td {
-  border-top: var(--borda) !important;
+  border-top: var(--borda);
 }
 </style>
 </head>
