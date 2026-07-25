@@ -181,6 +181,8 @@ tr.row-sec-top td {
   height: 6.7mm;
   vertical-align: middle;
   padding-left: 3pt;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 /* ── Supressão (Nota 2 — quando bloco é omitido) ── */
@@ -249,7 +251,6 @@ table.canhoto-table td.canhoto-cell .val {
 .cab-titulo .val-jur { display: none; color: #e30613; font-size: 9pt; font-weight: 700; }
 .homologacao .cab-titulo .val-jur { display: block; }
 .cab-info {
-  width: 55mm;
   font-size: 6pt;
   line-height: 1.4;
   padding: 2pt 3pt;
@@ -257,12 +258,10 @@ table.canhoto-table td.canhoto-cell .val {
 }
 .cab-info strong { font-size: 8pt; }
 
-/* ── QR Code (dentro da coluna c-qr da tabela) ── */
+/* ── QR Code (NT-008: 1,52cm × 1,52cm; texto 6pt 3 linhas) ── */
 .c-qr {
-  width: 20mm;
-  border: none !important;
   vertical-align: top;
-  padding: 8mm 1mm 1mm 1mm;
+  padding: 6mm 2mm 1mm 2mm;
   text-align: center;
 }
 .c-qr img.qr-img {
@@ -272,8 +271,8 @@ table.canhoto-table td.canhoto-cell .val {
 }
 .c-qr .qr-txt {
   font-family: var(--f-val);
-  font-size: 5pt;
-  line-height: 1.1;
+  font-size: 6pt;
+  line-height: 1.2;
   text-align: justify;
   color: #000;
   word-break: break-word;
@@ -316,6 +315,7 @@ tr.sec-title-full td {
 
 <div class="form-borda">
 <table class="danfse">
+  <colgroup><col style="width:25%"><col style="width:25%"><col style="width:25%"><col style="width:25%"></colgroup>
   <!-- ═══ CABEÇALHO ═══ -->
   <tr>
     <td class="cab cab-logo" colspan="1"><img src="${logoDataUri}" alt="NFS-e"></td>
