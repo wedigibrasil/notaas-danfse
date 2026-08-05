@@ -70,7 +70,7 @@ function fmtDateTime(v: unknown): string {
 
 function trunc(s: string, maxLen: number): string {
     if (s === DASH || s.length <= maxLen) return s;
-    return s.slice(0, maxLen - 5) + '(...)';
+    return s.slice(0, maxLen - 3) + '...';
 }
 
 function get(obj: Record<string, unknown>, path: string): unknown {
@@ -395,7 +395,7 @@ export class DanfseXmlParser extends BaseParser {
         const cServ = serv.cServ || {};
         const cTribNac = str(cServ.cTribNac);
         const cTribMun = str(cServ.cTribMun || infNFSe.cTribMun);
-        const xTribNac = str(cServ.xTribNac);
+        const xTribNac = str(infNFSe.xTribNac);
         const xTribMun = str(infNFSe.xTribMun);
         const descCodTrib = xTribMun !== DASH ? xTribMun : xTribNac;
 
