@@ -8,6 +8,11 @@
 import { XMLParser } from 'fast-xml-parser';
 import QRCode from 'qrcode';
 import type { DanfseData, DanfsePessoa, DanfsePrestador } from './types.js';
+import { getIbgeCity } from './ibge-cities.js';
+
+export interface DanfseParserOptions {
+    resolveIbgeName?: (code: string) => { xMun: string; uf: string } | undefined;
+}
 
 // ─── Helpers do Módulo (Encapsulados) ────────────────────────────────────────
 
@@ -226,34 +231,41 @@ export class DanfseXmlParser extends BaseParser {
         return DASH;
     }
 
-    private buildMunLookup(infNFSe: Record<string, unknown>, emit: Record<string, unknown>): void {
+    private buildMunLookup(infNFSe: Record<string, unknown>, emit: Record<string, unknown>, options?: DanfseParserOptions): void {
         this.munLookup.clear();
+
+        const resolveCity = (code: string, xmlName?: string, xmlUf?: string): { xMun: string; uf: string } => {
+            const custom = options?.resolveIbgeName?.(code);
+            if (custom?.xMun) return custom;
+            const ibge = getIbgeCity(code);
+            if (ibge?.xMun) return ibge;
+            return {
+                xMun: xmlName || '',
+                uf: xmlUf || this.resolveUfFromCMun(code),
+            };
+        };
+
         const emitEnd = emit.enderNac as Record<string, unknown> | undefined;
-        if (emitEnd?.cMun) {
-            this.munLookup.set(String(emitEnd.cMun), {
-                xMun: String(infNFSe.xLocEmi || emitEnd.xMun || ''),
-                uf: String(emitEnd.UF || ''),
-            });
+        const cMunEmit = String(emitEnd?.cMun || '');
+        if (cMunEmit) {
+            const resolved = resolveCity(cMunEmit, String(infNFSe.xLocEmi || emitEnd?.xMun || ''), String(emitEnd?.UF || ''));
+            this.munLookup.set(cMunEmit, resolved);
         }
-        const dps = infNFSe.DPS as Record<string, unknown> | undefined || {};
-        const infDPS = (dps as Record<string, unknown>).infDPS as Record<string, unknown> | undefined || dps;
-        const serv = (infDPS as Record<string, unknown>).serv as Record<string, unknown> | undefined || {};
-        const locPrest = (serv as Record<string, unknown>).locPrest as Record<string, unknown> | undefined || {};
+
+        const dps = (infNFSe.DPS as Record<string, unknown> | undefined) || {};
+        const infDPS = ((dps as Record<string, unknown>).infDPS as Record<string, unknown> | undefined) || dps;
+        const serv = ((infDPS as Record<string, unknown>).serv as Record<string, unknown> | undefined) || {};
+        const locPrest = ((serv as Record<string, unknown>).locPrest as Record<string, unknown> | undefined) || {};
         const cLocPrest = String((locPrest as Record<string, unknown>).cLocPrestacao || '');
-        if (cLocPrest && infNFSe.xLocPrestacao) {
-            const existing = this.munLookup.get(cLocPrest);
-            this.munLookup.set(cLocPrest, {
-                xMun: String(infNFSe.xLocPrestacao),
-                uf: existing?.uf || '',
-            });
+        if (cLocPrest) {
+            const resolved = resolveCity(cLocPrest, String(infNFSe.xLocPrestacao || ''));
+            this.munLookup.set(cLocPrest, resolved);
         }
+
         const cLocIncid = String(infNFSe.cLocIncid || '');
-        if (cLocIncid && infNFSe.xLocIncid) {
-            const existing = this.munLookup.get(cLocIncid);
-            this.munLookup.set(cLocIncid, {
-                xMun: String(infNFSe.xLocIncid),
-                uf: existing?.uf || '',
-            });
+        if (cLocIncid) {
+            const resolved = resolveCity(cLocIncid, String(infNFSe.xLocIncid || ''));
+            this.munLookup.set(cLocIncid, resolved);
         }
     }
 
@@ -323,8 +335,11 @@ export class DanfseXmlParser extends BaseParser {
         };
     }
 
-    public async parse(xml: string, ibgeLookup?: IbgeLookup): Promise<DanfseData> {
-        const parsed = this.xmlParser.parse(xml);
+    public async parse(rawXml: string, ibgeLookupOrOptions?: IbgeLookup | DanfseParserOptions): Promise<DanfseData> {
+        const ibgeLookup = ibgeLookupOrOptions instanceof Map ? ibgeLookupOrOptions : undefined;
+        const options = !(ibgeLookupOrOptions instanceof Map) ? ibgeLookupOrOptions : undefined;
+
+        const parsed = this.xmlParser.parse(rawXml);
         const nfse = parsed.NFSe || parsed.retNFSe?.NFSe || parsed.NFSeProc?.NFSe || parsed;
         const infNFSe = nfse.infNFSe || nfse;
 
@@ -336,7 +351,7 @@ export class DanfseXmlParser extends BaseParser {
         const infDPS = dps.infDPS || dps;
         const emit = infNFSe.emit || {};
 
-        this.buildMunLookup(infNFSe, emit as Record<string, unknown>);
+        this.buildMunLookup(infNFSe, emit as Record<string, unknown>, options);
 
         if (ibgeLookup) {
             for (const [code, info] of ibgeLookup) {
