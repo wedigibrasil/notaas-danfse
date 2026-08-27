@@ -29,15 +29,22 @@ function toNum(v: unknown): number {
     return isNaN(n) ? 0 : n;
 }
 
+// Antes tratava qualquer valor numérico igual a zero como "ausente" (retornava DASH),
+// mas o XML autorizado distingue os dois casos: um campo AUSENTE (undefined) é
+// "não se aplica", já um campo PRESENTE com "0.00" é um valor real (ex.: alíquota
+// municipal do IBS em municípios que zeraram essa parcela) e deve aparecer como tal —
+// "R$ 0,00" / "0,00%", não "-". Comparado contra o Portal Nacional: campos como
+// "Alíquota Efetiva Municipal – IBS" e "Valor Apurado Municipal – IBS" saíam em branco
+// nessa lib mesmo quando o XML trazia "0.00" explicitamente.
 function fmtMoney(v: unknown): string {
+    if (v === undefined || v === null || v === '') return DASH;
     const n = toNum(v);
-    if (n === 0) return DASH;
     return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function fmtPct(v: unknown): string {
+    if (v === undefined || v === null || v === '') return DASH;
     const n = toNum(v);
-    if (n === 0) return DASH;
     return `${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}%`;
 }
 
@@ -388,7 +395,25 @@ export class DanfseXmlParser extends BaseParser {
         const toma = infDPS.toma as Record<string, unknown> | undefined;
         const tomador = this.extractPessoa(toma);
 
-        const ibscbs = infDPS.IBSCBS || infNFSe.IBSCBS || {};
+        // A NFS-e autorizada traz DOIS blocos <IBSCBS>: um em infNFSe, calculado pela SEFIN
+        // (vBC, alíquotas efetivas, totais de IBS/CBS), e outro ecoado dentro de
+        // DPS.infDPS — o que o emissor de fato submeteu (finNFSe/indFinal/cIndOp/indDest/
+        // CST/cClassTrib). Pegar só um dos dois (como fazia antes, com `||`) descarta o
+        // outro inteiro; o Portal Nacional mostra os dois conjuntos de campos juntos, então
+        // o parser precisa fazer o merge também.
+        const ibscbsNfse = (infNFSe.IBSCBS || {}) as Record<string, unknown>;
+        const ibscbsDps = (infDPS.IBSCBS || {}) as Record<string, unknown>;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- resto do parser trata
+        // esses blocos como `any` (vindos do fast-xml-parser); manter consistente evita ter
+        // que anotar todo o resto dos acessos encadeados abaixo (ibscbsValores.trib.gIBSCBS...).
+        const ibscbs: any = {
+            ...ibscbsNfse,
+            ...ibscbsDps,
+            valores: {
+                ...(ibscbsNfse.valores as Record<string, unknown> | undefined),
+                ...(ibscbsDps.valores as Record<string, unknown> | undefined),
+            },
+        };
         const dest = ibscbs.dest as Record<string, unknown> | undefined;
         const destinatario = this.extractPessoa(dest);
 
@@ -496,9 +521,13 @@ export class DanfseXmlParser extends BaseParser {
         const vTotTrib = totTrib.vTotTrib || {};
         const pTotTrib = totTrib.pTotTrib || {};
         if (vTotTrib.vTotTribFed || pTotTrib.pTotTribFed) {
-            const fed = vTotTrib.vTotTribFed ? `R$ ${toNum(vTotTrib.vTotTribFed).toFixed(2)}` : `${toNum(pTotTrib.pTotTribFed).toFixed(2)}%`;
-            const est = vTotTrib.vTotTribEst ? `R$ ${toNum(vTotTrib.vTotTribEst).toFixed(2)}` : `${toNum(pTotTrib.pTotTribEst).toFixed(2)}%`;
-            const mun = vTotTrib.vTotTribMun ? `R$ ${toNum(vTotTrib.vTotTribMun).toFixed(2)}` : `${toNum(pTotTrib.pTotTribMun).toFixed(2)}%`;
+            // `.toFixed(2)` puro sempre usa ponto decimal — o resto do documento usa vírgula
+            // (padrão pt-BR); reaproveita fmtMoney/fmtPct, que já formatam certo (e, com o
+            // fix acima, mostram "0,00%" de verdade em vez de "-" quando o percentual é
+            // legitimamente zero — o que a "Lei da Transparência" exige mostrar sempre).
+            const fed = vTotTrib.vTotTribFed ? fmtMoney(vTotTrib.vTotTribFed) : fmtPct(pTotTrib.pTotTribFed);
+            const est = vTotTrib.vTotTribEst ? fmtMoney(vTotTrib.vTotTribEst) : fmtPct(pTotTrib.pTotTribEst);
+            const mun = vTotTrib.vTotTribMun ? fmtMoney(vTotTrib.vTotTribMun) : fmtPct(pTotTrib.pTotTribMun);
             infoCompParts.push(`Totais Aproximados dos Tributos cfe. Lei nº 12.741/2012: Federais: ${fed} ; Estaduais: ${est} ; Municipais: ${mun}`);
         }
 
@@ -620,7 +649,10 @@ export class DanfseXmlParser extends BaseParser {
             exibirPisCofins,
             tpRetPisCofins: trunc(TP_RET_PIS_COFINS_MAP[String(pisCofins.tpRetPisCofins)] || str(pisCofins.tpRetPisCofins), 35),
             cstClass:     `${str(gIBSCBS.CST)} / ${str(gIBSCBS.cClassTrib)}`,
-            indOpLocal:   trunc(`${str(ibscbs.cIndOp)} / ${str(infNFSe.IBSCBS?.cLocalidadeIncid || ibscbs.cLocalidadeIncid)} / ${str(infNFSe.IBSCBS?.xLocalidadeIncid || ibscbs.xLocalidadeIncid)}`, 56),
+            // Antes do merge do IBSCBS acima, cIndOp (infDPS) e cLocalidadeIncid/xLocalidadeIncid
+            // (infNFSe) vinham de blocos diferentes que a lib não juntava — daí o fallback
+            // manual pra infNFSe.IBSCBS aqui. Com `ibscbs` já mesclado, não precisa mais.
+            indOpLocal:   trunc(`${str(ibscbs.cIndOp)} / ${str(ibscbs.cLocalidadeIncid)} / ${str(ibscbs.xLocalidadeIncid)}`, 56),
             exclRedBC:    fmtMoney(exclRedBCNum || undefined),
             vBCIbs:       fmtMoney(ibscbsValores.vBC),
             redAliq:      `${fmtPct(ibsUf.pRedAliqUF)} / ${fmtPct(ibsMun.pRedAliqMun)} / ${fmtPct(ibsFed.pRedAliqCBS)}`,
