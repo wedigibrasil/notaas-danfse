@@ -29,20 +29,33 @@ function toNum(v: unknown): number {
     return isNaN(n) ? 0 : n;
 }
 
-// Antes tratava qualquer valor numérico igual a zero como "ausente" (retornava DASH),
-// mas o XML autorizado distingue os dois casos: um campo AUSENTE (undefined) é
-// "não se aplica", já um campo PRESENTE com "0.00" é um valor real (ex.: alíquota
-// municipal do IBS em municípios que zeraram essa parcela) e deve aparecer como tal —
-// "R$ 0,00" / "0,00%", não "-". Comparado contra o Portal Nacional: campos como
-// "Alíquota Efetiva Municipal – IBS" e "Valor Apurado Municipal – IBS" saíam em branco
-// nessa lib mesmo quando o XML trazia "0.00" explicitamente.
 function fmtMoney(v: unknown): string {
+    const n = toNum(v);
+    if (n === 0) return DASH;
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function fmtPct(v: unknown): string {
+    const n = toNum(v);
+    if (n === 0) return DASH;
+    return `${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}%`;
+}
+
+// Variante "estrita" pra campos que vêm DIRETO de um elemento do XML (nunca uma soma
+// computada) — aqui dá pra distinguir de verdade "campo ausente" (undefined, "não se
+// aplica") de "campo presente com 0.00" (um valor real, ex.: alíquota municipal do IBS
+// zerada nesse município). fmtMoney/fmtPct tratam zero como ausente de propósito: em
+// campos SOMADOS (totDedRed, vRetCSLL, exclRedBC...) um resultado zero é, na prática,
+// "nada a mostrar" tanto quanto "ausente" — não dá pra distinguir os dois depois de
+// somar, e o Portal Nacional também mostra "-" nesses casos, não "R$ 0,00". Usar a
+// variante estrita nesses campos SOMADOS seria pior, não melhor.
+function fmtMoneyStrict(v: unknown): string {
     if (v === undefined || v === null || v === '') return DASH;
     const n = toNum(v);
     return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-function fmtPct(v: unknown): string {
+function fmtPctStrict(v: unknown): string {
     if (v === undefined || v === null || v === '') return DASH;
     const n = toNum(v);
     return `${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}%`;
@@ -525,9 +538,13 @@ export class DanfseXmlParser extends BaseParser {
             // (padrão pt-BR); reaproveita fmtMoney/fmtPct, que já formatam certo (e, com o
             // fix acima, mostram "0,00%" de verdade em vez de "-" quando o percentual é
             // legitimamente zero — o que a "Lei da Transparência" exige mostrar sempre).
-            const fed = vTotTrib.vTotTribFed ? fmtMoney(vTotTrib.vTotTribFed) : fmtPct(pTotTrib.pTotTribFed);
-            const est = vTotTrib.vTotTribEst ? fmtMoney(vTotTrib.vTotTribEst) : fmtPct(pTotTrib.pTotTribEst);
-            const mun = vTotTrib.vTotTribMun ? fmtMoney(vTotTrib.vTotTribMun) : fmtPct(pTotTrib.pTotTribMun);
+            // fmtMoneyStrict/fmtPctStrict (não fmtMoney/fmtPct) de propósito: os 3 percentuais
+            // são exigidos pela Lei da Transparência e sempre vêm preenchidos no XML — um
+            // "0.00" aqui é uma alíquota real zerada (ex.: Estadual/Municipal no nosso caso
+            // de teste), não "campo ausente".
+            const fed = vTotTrib.vTotTribFed ? fmtMoneyStrict(vTotTrib.vTotTribFed) : fmtPctStrict(pTotTrib.pTotTribFed);
+            const est = vTotTrib.vTotTribEst ? fmtMoneyStrict(vTotTrib.vTotTribEst) : fmtPctStrict(pTotTrib.pTotTribEst);
+            const mun = vTotTrib.vTotTribMun ? fmtMoneyStrict(vTotTrib.vTotTribMun) : fmtPctStrict(pTotTrib.pTotTribMun);
             infoCompParts.push(`Totais Aproximados dos Tributos cfe. Lei nº 12.741/2012: Federais: ${fed} ; Estaduais: ${est} ; Municipais: ${mun}`);
         }
 
@@ -654,17 +671,17 @@ export class DanfseXmlParser extends BaseParser {
             // manual pra infNFSe.IBSCBS aqui. Com `ibscbs` já mesclado, não precisa mais.
             indOpLocal:   trunc(`${str(ibscbs.cIndOp)} / ${str(ibscbs.cLocalidadeIncid)} / ${str(ibscbs.xLocalidadeIncid)}`, 56),
             exclRedBC:    fmtMoney(exclRedBCNum || undefined),
-            vBCIbs:       fmtMoney(ibscbsValores.vBC),
-            redAliq:      `${fmtPct(ibsUf.pRedAliqUF)} / ${fmtPct(ibsMun.pRedAliqMun)} / ${fmtPct(ibsFed.pRedAliqCBS)}`,
-            aliqIbs:      `${fmtPct(ibsUf.pIBSUF)} / ${fmtPct(ibsMun.pIBSMun)}`,
-            pAliqEfetMun: fmtPct(ibsMun.pAliqEfetMun),
-            vIBSMun:      fmtMoney(gIBSMunTot.vIBSMun),
-            pAliqEfetUF:  fmtPct(ibsUf.pAliqEfetUF),
-            vIBSUF:       fmtMoney(gIBSUFTot.vIBSUF),
-            vIBSTot:      fmtMoney(gIBS.vIBSTot),
-            pCBS:         fmtPct(ibsFed.pCBS),
-            pAliqEfetCBS: fmtPct(ibsFed.pAliqEfetCBS),
-            vCBS:         fmtMoney(gCBS.vCBS),
+            vBCIbs:       fmtMoneyStrict(ibscbsValores.vBC),
+            redAliq:      `${fmtPctStrict(ibsUf.pRedAliqUF)} / ${fmtPctStrict(ibsMun.pRedAliqMun)} / ${fmtPctStrict(ibsFed.pRedAliqCBS)}`,
+            aliqIbs:      `${fmtPctStrict(ibsUf.pIBSUF)} / ${fmtPctStrict(ibsMun.pIBSMun)}`,
+            pAliqEfetMun: fmtPctStrict(ibsMun.pAliqEfetMun),
+            vIBSMun:      fmtMoneyStrict(gIBSMunTot.vIBSMun),
+            pAliqEfetUF:  fmtPctStrict(ibsUf.pAliqEfetUF),
+            vIBSUF:       fmtMoneyStrict(gIBSUFTot.vIBSUF),
+            vIBSTot:      fmtMoneyStrict(gIBS.vIBSTot),
+            pCBS:         fmtPctStrict(ibsFed.pCBS),
+            pAliqEfetCBS: fmtPctStrict(ibsFed.pAliqEfetCBS),
+            vCBS:         fmtMoneyStrict(gCBS.vCBS),
             vServ:        fmtMoney(vServPrest.vServ),
             vDescIncond:  fmtMoney(vDescCondIncond.vDescIncond),
             vDescCond:    fmtMoney(vDescCondIncond.vDescCond),
