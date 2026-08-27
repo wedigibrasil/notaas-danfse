@@ -41,6 +41,26 @@ function fmtPct(v: unknown): string {
     return `${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}%`;
 }
 
+// Variante "estrita" pra campos que vêm DIRETO de um elemento do XML (nunca uma soma
+// computada) — aqui dá pra distinguir de verdade "campo ausente" (undefined, "não se
+// aplica") de "campo presente com 0.00" (um valor real, ex.: alíquota municipal do IBS
+// zerada nesse município). fmtMoney/fmtPct tratam zero como ausente de propósito: em
+// campos SOMADOS (totDedRed, vRetCSLL, exclRedBC...) um resultado zero é, na prática,
+// "nada a mostrar" tanto quanto "ausente" — não dá pra distinguir os dois depois de
+// somar, e o Portal Nacional também mostra "-" nesses casos, não "R$ 0,00". Usar a
+// variante estrita nesses campos SOMADOS seria pior, não melhor.
+function fmtMoneyStrict(v: unknown): string {
+    if (v === undefined || v === null || v === '') return DASH;
+    const n = toNum(v);
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function fmtPctStrict(v: unknown): string {
+    if (v === undefined || v === null || v === '') return DASH;
+    const n = toNum(v);
+    return `${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}%`;
+}
+
 function fmtCnpj(raw: string): string {
     const d = raw.replace(/\D/g, '');
     if (d.length !== 14) return raw;
@@ -388,7 +408,25 @@ export class DanfseXmlParser extends BaseParser {
         const toma = infDPS.toma as Record<string, unknown> | undefined;
         const tomador = this.extractPessoa(toma);
 
-        const ibscbs = infDPS.IBSCBS || infNFSe.IBSCBS || {};
+        // A NFS-e autorizada traz DOIS blocos <IBSCBS>: um em infNFSe, calculado pela SEFIN
+        // (vBC, alíquotas efetivas, totais de IBS/CBS), e outro ecoado dentro de
+        // DPS.infDPS — o que o emissor de fato submeteu (finNFSe/indFinal/cIndOp/indDest/
+        // CST/cClassTrib). Pegar só um dos dois (como fazia antes, com `||`) descarta o
+        // outro inteiro; o Portal Nacional mostra os dois conjuntos de campos juntos, então
+        // o parser precisa fazer o merge também.
+        const ibscbsNfse = (infNFSe.IBSCBS || {}) as Record<string, unknown>;
+        const ibscbsDps = (infDPS.IBSCBS || {}) as Record<string, unknown>;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- resto do parser trata
+        // esses blocos como `any` (vindos do fast-xml-parser); manter consistente evita ter
+        // que anotar todo o resto dos acessos encadeados abaixo (ibscbsValores.trib.gIBSCBS...).
+        const ibscbs: any = {
+            ...ibscbsNfse,
+            ...ibscbsDps,
+            valores: {
+                ...(ibscbsNfse.valores as Record<string, unknown> | undefined),
+                ...(ibscbsDps.valores as Record<string, unknown> | undefined),
+            },
+        };
         const dest = ibscbs.dest as Record<string, unknown> | undefined;
         const destinatario = this.extractPessoa(dest);
 
@@ -496,9 +534,17 @@ export class DanfseXmlParser extends BaseParser {
         const vTotTrib = totTrib.vTotTrib || {};
         const pTotTrib = totTrib.pTotTrib || {};
         if (vTotTrib.vTotTribFed || pTotTrib.pTotTribFed) {
-            const fed = vTotTrib.vTotTribFed ? `R$ ${toNum(vTotTrib.vTotTribFed).toFixed(2)}` : `${toNum(pTotTrib.pTotTribFed).toFixed(2)}%`;
-            const est = vTotTrib.vTotTribEst ? `R$ ${toNum(vTotTrib.vTotTribEst).toFixed(2)}` : `${toNum(pTotTrib.pTotTribEst).toFixed(2)}%`;
-            const mun = vTotTrib.vTotTribMun ? `R$ ${toNum(vTotTrib.vTotTribMun).toFixed(2)}` : `${toNum(pTotTrib.pTotTribMun).toFixed(2)}%`;
+            // `.toFixed(2)` puro sempre usa ponto decimal — o resto do documento usa vírgula
+            // (padrão pt-BR); reaproveita fmtMoney/fmtPct, que já formatam certo (e, com o
+            // fix acima, mostram "0,00%" de verdade em vez de "-" quando o percentual é
+            // legitimamente zero — o que a "Lei da Transparência" exige mostrar sempre).
+            // fmtMoneyStrict/fmtPctStrict (não fmtMoney/fmtPct) de propósito: os 3 percentuais
+            // são exigidos pela Lei da Transparência e sempre vêm preenchidos no XML — um
+            // "0.00" aqui é uma alíquota real zerada (ex.: Estadual/Municipal no nosso caso
+            // de teste), não "campo ausente".
+            const fed = vTotTrib.vTotTribFed ? fmtMoneyStrict(vTotTrib.vTotTribFed) : fmtPctStrict(pTotTrib.pTotTribFed);
+            const est = vTotTrib.vTotTribEst ? fmtMoneyStrict(vTotTrib.vTotTribEst) : fmtPctStrict(pTotTrib.pTotTribEst);
+            const mun = vTotTrib.vTotTribMun ? fmtMoneyStrict(vTotTrib.vTotTribMun) : fmtPctStrict(pTotTrib.pTotTribMun);
             infoCompParts.push(`Totais Aproximados dos Tributos cfe. Lei nº 12.741/2012: Federais: ${fed} ; Estaduais: ${est} ; Municipais: ${mun}`);
         }
 
@@ -620,19 +666,22 @@ export class DanfseXmlParser extends BaseParser {
             exibirPisCofins,
             tpRetPisCofins: trunc(TP_RET_PIS_COFINS_MAP[String(pisCofins.tpRetPisCofins)] || str(pisCofins.tpRetPisCofins), 35),
             cstClass:     `${str(gIBSCBS.CST)} / ${str(gIBSCBS.cClassTrib)}`,
-            indOpLocal:   trunc(`${str(ibscbs.cIndOp)} / ${str(infNFSe.IBSCBS?.cLocalidadeIncid || ibscbs.cLocalidadeIncid)} / ${str(infNFSe.IBSCBS?.xLocalidadeIncid || ibscbs.xLocalidadeIncid)}`, 56),
+            // Antes do merge do IBSCBS acima, cIndOp (infDPS) e cLocalidadeIncid/xLocalidadeIncid
+            // (infNFSe) vinham de blocos diferentes que a lib não juntava — daí o fallback
+            // manual pra infNFSe.IBSCBS aqui. Com `ibscbs` já mesclado, não precisa mais.
+            indOpLocal:   trunc(`${str(ibscbs.cIndOp)} / ${str(ibscbs.cLocalidadeIncid)} / ${str(ibscbs.xLocalidadeIncid)}`, 56),
             exclRedBC:    fmtMoney(exclRedBCNum || undefined),
-            vBCIbs:       fmtMoney(ibscbsValores.vBC),
-            redAliq:      `${fmtPct(ibsUf.pRedAliqUF)} / ${fmtPct(ibsMun.pRedAliqMun)} / ${fmtPct(ibsFed.pRedAliqCBS)}`,
-            aliqIbs:      `${fmtPct(ibsUf.pIBSUF)} / ${fmtPct(ibsMun.pIBSMun)}`,
-            pAliqEfetMun: fmtPct(ibsMun.pAliqEfetMun),
-            vIBSMun:      fmtMoney(gIBSMunTot.vIBSMun),
-            pAliqEfetUF:  fmtPct(ibsUf.pAliqEfetUF),
-            vIBSUF:       fmtMoney(gIBSUFTot.vIBSUF),
-            vIBSTot:      fmtMoney(gIBS.vIBSTot),
-            pCBS:         fmtPct(ibsFed.pCBS),
-            pAliqEfetCBS: fmtPct(ibsFed.pAliqEfetCBS),
-            vCBS:         fmtMoney(gCBS.vCBS),
+            vBCIbs:       fmtMoneyStrict(ibscbsValores.vBC),
+            redAliq:      `${fmtPctStrict(ibsUf.pRedAliqUF)} / ${fmtPctStrict(ibsMun.pRedAliqMun)} / ${fmtPctStrict(ibsFed.pRedAliqCBS)}`,
+            aliqIbs:      `${fmtPctStrict(ibsUf.pIBSUF)} / ${fmtPctStrict(ibsMun.pIBSMun)}`,
+            pAliqEfetMun: fmtPctStrict(ibsMun.pAliqEfetMun),
+            vIBSMun:      fmtMoneyStrict(gIBSMunTot.vIBSMun),
+            pAliqEfetUF:  fmtPctStrict(ibsUf.pAliqEfetUF),
+            vIBSUF:       fmtMoneyStrict(gIBSUFTot.vIBSUF),
+            vIBSTot:      fmtMoneyStrict(gIBS.vIBSTot),
+            pCBS:         fmtPctStrict(ibsFed.pCBS),
+            pAliqEfetCBS: fmtPctStrict(ibsFed.pAliqEfetCBS),
+            vCBS:         fmtMoneyStrict(gCBS.vCBS),
             vServ:        fmtMoney(vServPrest.vServ),
             vDescIncond:  fmtMoney(vDescCondIncond.vDescIncond),
             vDescCond:    fmtMoney(vDescCondIncond.vDescCond),
